@@ -14,10 +14,10 @@ const ask = (message, yes, no) => {//when user action needed
 const ttrim = str => str.replace(/\t+/gm, "")//just removes all tabs
 
 rl.question("Ок, перед тем, как мы начнем, введите свой access_token: ", access_token => {
-	access_token = access_token.trim()//idk, just to be shure :)
+	access_token = access_token.trim()//idk, just to be sure :)
 
 	if (/^[a-z0-9]{85}$/.test(access_token)) {//seems like valid access_token
-		let comments = [{owner_id: "-194089330", comment_id: 5}]//here we gonna store all gathered comments
+		let comments = []//here we gonna store all gathered comments
 		let files = fs.readdirSync("./")
 		files.forEach((file, fileIndex) => {
 			if (file !== "main.js" && file !== "start.cmd") {//yes it's us
@@ -41,7 +41,7 @@ rl.question("Ок, перед тем, как мы начнем, введите �
 			() => {//if 1
 				console.log("Начинается процесс удаления...")
 				
-				const removeComment = (commentIndex) => {//loop
+				const removeComment = commentIndex => {//loop
 					if (commentIndex === comments.length) {//oh, we reached the end!
 						console.log("Все ваши комментарии успешно удалены! Можете закрыть консоль и пойти проверить, действительно ли все прошло гладко ;)")
 						rl.close()
@@ -67,7 +67,7 @@ rl.question("Ок, перед тем, как мы начнем, введите �
 										removeComment(++commentIndex)
 									}
 									else if (parsedData.error && typeof parsedData.error.error_code === "number") {//got an error from vk
-										if (parsedData.error.error_code === 5) {//wrong token
+										if (parsedData.error.error_code === 5) {//seems like wrong token
 											console.log("Что-то не так с вашим токеном. Попробуйте выпустить новый.")
 											rl.close()
 										}
@@ -89,7 +89,7 @@ rl.question("Ок, перед тем, как мы начнем, введите �
 										removeComment(++commentIndex)
 									}
 								}
-								catch (e) {//JSON.parse is broken?
+								catch (e) {//seems like JSON.parse broke
 									console.log(`Не удалось прочитать ответ от ВК (${rawData}). Не критично, продолжаю...`)
 									removeComment(++commentIndex)
 								}
