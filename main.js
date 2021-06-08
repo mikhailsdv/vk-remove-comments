@@ -18,7 +18,7 @@ rl.question("Ок, перед тем, как мы начнем, введите �
 
 	if (/^[a-z0-9]{85}$/.test(access_token)) {//seems like valid access_token
 		let comments = []//here we gonna store all gathered comments
-		let files = fs.readdirSync("./").filter(filename => !["main.js", "start.cmd", "start.sh"].includes(filename))
+		let files = fs.readdirSync(__dirname).filter(filename => !["main.js", "start.cmd", "start.sh"].includes(filename))
 
 		files.forEach((file, fileIndex) => {
 			fs.readFileSync(file, "utf8").replace(/"https:\/\/vk.com\/wall(-?\d+)_\d+\?reply=(\d+)/g, (match, owner_id, comment_id) => {//why replace? cause it has a nice callback mode
