@@ -1,2 +1,2 @@
 #!/bin/sh
-node main.js
+node index.js
