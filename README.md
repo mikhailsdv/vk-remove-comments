@@ -22,7 +22,7 @@
 
 -   На Windows запустите `start.cmd`.
 -   На UNIX запустите `start.sh`.
--   На любой ОС можете просто запустить скрипт, в терминале наберите `node main.js`. И `start.cmd`, и `start.sh` делают то же самое, по сути.
+-   На любой ОС можете просто запустить скрипт, в терминале наберите `node index.js`. И `start.cmd`, и `start.sh` делают то же самое, по сути.
 
 6. Скрипт попросит вас ввести токен. Чтобы получить токен, перейдите по ссылке [https://oauth.vk.com/authorize?client_id=…](https://oauth.vk.com/authorize?client_id=2685278&scope=8192&redirect_uri=https://oauth.vk.com/blank.html&display=page&response_type=token&revoke=1).
 7. Нажмите «Разрешить» (войдите в аккаунт, если потребуется).
