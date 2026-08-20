@@ -23,7 +23,7 @@ const sleep = d => new Promise(resolve => setTimeout(resolve, d))
 ;(async () => {
 	const url = await ask(
 		`Ок, перед тем, как мы начнем, мне нужно получить ваш access_token. Для этого перейдите по ссылке ниже и разрешите доступ, после чего скопируйте ПОЛНУЮ ссылку из адресной строки и вставьте в это окно. Затем нажмите Enter.
-	\nhttps://oauth.vk.com/authorize?client_id=2685278&scope=8192&redirect_uri=https://oauth.vk.com/blank.html&display=page&response_type=token&revoke=1
+	\nhttps://oauth.vk.com/authorize?client_id=4083558&scope=8192&redirect_uri=https://oauth.vk.com/blank.html&display=page&response_type=token&revoke=1
 	\nВставьте ссылку из адресной строки и нажмите Enter: `
 	)
 	const match = url.match(/^https:\/\/oauth.vk.com\/blank\.html#access_token=(.+?)&/)
