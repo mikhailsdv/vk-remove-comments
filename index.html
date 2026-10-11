@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://api.vk.ru https://api.vk.com; style-src 'self'; img-src 'self' data: https://*.vk.ru https://*.vk.com https://*.userapi.com https://*.vkuserphoto.ru https://*.mycdn.me; worker-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+	<meta name="referrer" content="no-referrer">
+	<title>Удаление комментариев ВК</title>
+	<meta name="description" content="Удаляет все ваши комментарии ВКонтакте по архиву данных. Бесплатно, открытый код, работает прямо в браузере.">
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%235b4bdb'/%3E%3Cpath d='M9 11h14v9h-7l-4 3v-3H9z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M13 15.5h6' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+	<script src="theme.js"></script>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<header class="hero">
+		<div class="topbar">
+			<p class="eyebrow"><span>Бесплатно ·</span> <span>Открытый код ·</span> <span>Работает в браузере</span></p>
+			<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
+				<svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+				<svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+			</button>
+		</div>
+		<h1>Удалите все свои комментарии ВКонтакте</h1>
+		<p class="lead">ВК не показывает список ваших комментариев, но выдаёт архив с данными. Страница берёт из архива ссылки на комментарии и удаляет их через официальный API.</p>
+		<ul class="facts">
+			<li>Токен не покидает браузер</li>
+			<li>Без сервера и регистрации</li>
+			<li>Можно сначала проверить без удаления</li>
+		</ul>
+	</header>
+
+	<main>
+		<section class="card step" id="step-archive">
+			<div class="step-head">
+				<span class="step-num">1</span>
+				<h2>Архив с комментариями</h2>
+			</div>
+			<p>Запросите архив на странице <a href="https://vk.ru/data_protection?section=rules&amp;scroll_to_archive=1" target="_blank" rel="noopener noreferrer">«Защита данных» ВКонтакте</a>. Отметьте только «Комментарии», остальное не нужно. Когда архив будет готов, ВК пришлёт уведомление; обычно это занимает от нескольких часов до пары дней.</p>
+
+			<div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Выбрать архив">
+				<svg class="dropzone-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+				<strong>Перетащите сюда архив .zip</strong>
+				<span>или папку из распакованного архива</span>
+				<span class="dropzone-actions">
+					<button type="button" class="btn small" id="pick-files">Выбрать файл</button>
+					<button type="button" class="btn small ghost" id="pick-folder">Выбрать папку</button>
+				</span>
+			</div>
+			<input type="file" id="file-input" accept=".zip,.html,.htm" multiple hidden>
+			<input type="file" id="folder-input" webkitdirectory multiple hidden>
+
+			<details class="manual">
+				<summary>Архива пока нет? Вставьте ссылки на комментарии</summary>
+				<p class="hint">Ссылку на комментарий можно скопировать, нажав на его дату. По одной на строку или как угодно вперемешку с текстом.</p>
+				<textarea id="manual-links" rows="4" placeholder="https://vk.ru/wall-1_2?reply=3" spellcheck="false"></textarea>
+				<button type="button" class="btn small" id="manual-add">Добавить ссылки</button>
+			</details>
+
+			<div class="status" id="archive-status" hidden></div>
+		</section>
+
+		<section class="card step" id="step-token">
+			<div class="step-head">
+				<span class="step-num">2</span>
+				<h2>Доступ к стене</h2>
+			</div>
+			<ol class="instructions">
+				<li>Нажмите кнопку ниже: ВК откроется в новой вкладке.</li>
+				<li>Войдите, если попросят, и нажмите «Разрешить».</li>
+				<li>Откроется пустая страница с предупреждением. Скопируйте её адрес <b>целиком</b> из адресной строки и вставьте сюда.</li>
+			</ol>
+			<div class="row">
+				<a class="btn primary" id="auth-main" target="_blank" rel="noopener noreferrer">Получить доступ через VFeed</a>
+			</div>
+			<details class="fallback">
+				<summary>Не сработало? Попробуйте другое приложение</summary>
+				<p class="hint">Доступ можно получить через несколько старых приложений ВК. Название в окне ВК будет соответствующим, права те же: только стена.</p>
+				<div class="row" id="auth-fallbacks"></div>
+			</details>
+
+			<div class="field" id="token-field">
+				<input type="text" id="token-input" placeholder="https://oauth.vk.ru/blank.html#access_token=…" autocomplete="off" spellcheck="false" aria-label="Адрес страницы с токеном">
+				<button type="button" class="btn" id="token-check">Проверить</button>
+			</div>
+			<div class="status" id="token-status" hidden></div>
+
+			<details class="note">
+				<summary>Почему здесь это безопасно</summary>
+				<p>ВК прямо на той странице просит не вставлять её адрес на сторонние сайты, и это правильный совет: с токеном можно управлять вашей стеной. Поэтому вот что делает эта страница:</p>
+				<ul>
+					<li>токен хранится только в памяти вкладки и пропадает, когда вы её закрываете;</li>
+					<li>запросы уходят только в API ВК, а политика безопасности страницы запрещает браузеру отправлять что-либо куда-то ещё;</li>
+					<li>доступ выдаётся только к стене и сам истекает через сутки;</li>
+					<li>код открыт: страницу можно <a href="https://github.com/mikhailsdv/vk-remove-comments" target="_blank" rel="noopener noreferrer">скачать с GitHub</a> и открыть у себя на компьютере.</li>
+				</ul>
+			</details>
+		</section>
+
+		<section class="card step" id="step-run">
+			<div class="step-head">
+				<span class="step-num">3</span>
+				<h2>Удаление</h2>
+			</div>
+			<p class="hint" id="run-hint">Загрузите архив и получите доступ, чтобы начать.</p>
+
+			<div class="status warn" id="resume" hidden>
+				<span id="resume-text"></span>
+				<button type="button" class="btn small ghost" id="resume-reset">Начать заново</button>
+			</div>
+
+			<div class="row">
+				<button type="button" class="btn" id="dry-run" disabled>Проверить без удаления</button>
+				<button type="button" class="btn danger" id="start" disabled>Удалить комментарии</button>
+			</div>
+
+			<div class="progress" id="progress" hidden>
+				<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="bar"><div class="bar-fill" id="bar-fill"></div></div>
+				<div class="progress-line">
+					<span id="progress-text"></span>
+					<span id="eta"></span>
+				</div>
+				<dl class="counters" id="counters"></dl>
+				<div class="status" id="run-message" hidden></div>
+
+				<div class="captcha" id="captcha" hidden>
+					<p>ВК просит подтвердить, что вы не робот.</p>
+					<img id="captcha-img" alt="Капча">
+					<a class="btn small" id="captcha-link" target="_blank" rel="noopener noreferrer" hidden>Пройти проверку ВК</a>
+					<div class="field">
+						<input type="text" id="captcha-input" placeholder="Текст с картинки" autocomplete="off" aria-label="Текст с картинки">
+						<button type="button" class="btn" id="captcha-send">Продолжить</button>
+					</div>
+				</div>
+
+				<div class="row">
+					<button type="button" class="btn small ghost" id="pause">Пауза</button>
+					<button type="button" class="btn small ghost" id="stop">Остановить</button>
+				</div>
+				<p class="hint">Не закрывайте вкладку, пока идёт удаление. Прогресс сохраняется: если что-то прервётся, загрузите тот же архив и продолжите.</p>
+			</div>
+
+			<details class="log">
+				<summary>Журнал</summary>
+				<ol id="log"></ol>
+			</details>
+		</section>
+
+		<section class="card step" id="step-done" hidden>
+			<div class="step-head">
+				<span class="step-num done">✓</span>
+				<h2 id="done-title">Готово</h2>
+			</div>
+			<p id="done-summary"></p>
+			<div class="row">
+				<button type="button" class="btn small ghost" id="download-report" hidden>Скачать список неудалённых</button>
+			</div>
+			<p class="hint">Когда закончите, отключите доступ приложения в настройках VK ID, в списке подключённых сервисов и приложений. Если не отключать, он всё равно истечёт сам через сутки.</p>
+		</section>
+
+		<section class="card support" id="support">
+			<h2>Помогло?</h2>
+			<p>Поставьте проекту звезду на GitHub: так его проще найти другим.</p>
+			<div class="row">
+				<a class="btn star" href="https://github.com/mikhailsdv/vk-remove-comments" target="_blank" rel="noopener noreferrer">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" fill="currentColor"/></svg>
+					Звезда на GitHub
+				</a>
+			</div>
+			<div id="donate" hidden>
+				<p>А если хочется сказать спасибо не только звездой:</p>
+				<div class="donate-grid" id="donate-list"></div>
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<p>Неофициальный инструмент, не связан с ВКонтакте. <a href="https://github.com/mikhailsdv/vk-remove-comments" target="_blank" rel="noopener noreferrer">Исходный код</a> · <a href="https://t.me/mikhailsdv" target="_blank" rel="noopener noreferrer">Написать автору</a></p>
+	</footer>
+
+	<script src="lib.js"></script>
+	<script src="app.js"></script>
+</body>
+</html>
