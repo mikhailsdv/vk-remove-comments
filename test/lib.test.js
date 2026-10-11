@@ -125,6 +125,28 @@ describe("buildQueue", () => {
 	})
 })
 
+describe("extractArchiveOwner", () => {
+	// vk writes unpadded base64 json into the jd meta tag
+	const jd = data => Buffer.from(JSON.stringify(data)).toString("base64").replace(/=+$/, "")
+
+	it("reads the account id from the archive page", () => {
+		const html = `<head><meta charset="windows-1251">
+			<meta name="jd" content="${jd({user_id: 42, time_current: 1790000000})}"></head>`
+		assert.equal(lib.extractArchiveOwner(html), 42)
+	})
+
+	it("does not depend on the attribute order or the base64 flavour", () => {
+		const content = jd({user_id: 1234567, note: "??>>"}).replace(/\+/g, "-").replace(/\//g, "_")
+		assert.equal(lib.extractArchiveOwner(`<meta content='${content}' name='jd'>`), 1234567)
+	})
+
+	it("returns null when there is nothing to read", () => {
+		assert.equal(lib.extractArchiveOwner("<a href='https://vk.ru/wall1_2?reply=3'>"), null)
+		assert.equal(lib.extractArchiveOwner(`<meta name="jd" content="not base64!">`), null)
+		assert.equal(lib.extractArchiveOwner(`<meta name="jd" content="${jd({foo: 1})}">`), null)
+	})
+})
+
 // minimal zip writer for tests
 const makeZip = files => {
 	const locals = []
@@ -285,6 +307,18 @@ describe("execute", () => {
 		)
 		assert.equal(result[0].error.code, 15)
 		assert.equal(result[3].error.code, 211)
+	})
+
+	it("reports unexpected errors as failures, not as gone", () => {
+		const world = {comments: {"-1_1": 999, "-1_2": 15}}
+		const result = run([comment(1), comment(2)], world)
+		assert.deepEqual(
+			result.map(r => [r.status, r.error.code]),
+			[
+				["failed", 999],
+				["gone", 15],
+			]
+		)
 	})
 
 	it("marks throttled deletes for retry", () => {
