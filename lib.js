@@ -98,6 +98,20 @@
 		return {queue, unsupported, duplicates, total: links.length}
 	}
 
+	// archive pages carry <meta name="jd" content="base64 json"> with the id of the account the archive belongs to
+	const extractArchiveOwner = html => {
+		const meta = String(html).match(/<meta[^>]*\bname=["']jd["'][^>]*>/i)
+		const content = meta && meta[0].match(/\bcontent=["']([^"']+)["']/i)
+		if (!content) return null
+		try {
+			const base64 = content[1].replace(/-/g, "+").replace(/_/g, "/")
+			const data = JSON.parse(atob(base64 + "===".slice((base64.length + 3) % 4)))
+			return Number(data.user_id) || null
+		} catch (e) {
+			return null
+		}
+	}
+
 	// short stable id of the queue, used as the key for saved progress
 	const hashKeys = keys => {
 		let hash = 0x811c9dc5
@@ -286,6 +300,9 @@ return out;`
 			}
 			const transient = getErrors.find(error => isTransient(classifyError(error.code)))
 			if (transient) return {status: "retry", kind: classifyError(transient.code), error: transient}
+			//an unexpected error must stay visible instead of blending in with deleted comments
+			const unexpected = getErrors.find(error => classifyError(error.code) === "unknown")
+			if (unexpected) return {status: "failed", error: unexpected}
 			if (sawOtherAuthor) return {status: "notMine"}
 			return {status: "gone", error: getErrors[getErrors.length - 1] || null}
 		})
@@ -298,6 +315,7 @@ return out;`
 		commentKey,
 		commentUrl,
 		buildQueue,
+		extractArchiveOwner,
 		hashKeys,
 		ZipError,
 		listZip,

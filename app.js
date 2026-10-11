@@ -7,6 +7,7 @@
 		isCommentsPath,
 		commentUrl,
 		buildQueue,
+		extractArchiveOwner,
 		hashKeys,
 		ZipError,
 		listZip,
@@ -234,9 +235,9 @@
 		links: [],
 		files: 0,
 		problems: [],
+		archiveOwners: new Set(), //ids of the accounts the loaded archive pages belong to
 		queue: [],
 		unsupported: {},
-		duplicates: 0,
 		queueHash: null,
 		saved: new Map(), //results of earlier delete runs over the same queue
 		token: null,
@@ -260,8 +261,8 @@
 	const folderInput = $("folder-input")
 
 	const rebuildQueue = () => {
-		const {queue, unsupported, duplicates} = buildQueue(state.links)
-		Object.assign(state, {queue, unsupported, duplicates})
+		const {queue, unsupported} = buildQueue(state.links)
+		Object.assign(state, {queue, unsupported})
 		state.queueHash = queue.length ? hashKeys(queue.map(comment => comment.key)) : null
 		const saved = state.queueHash ? storage.load(state.queueHash) : null
 		state.saved = new Map(
@@ -288,16 +289,9 @@
 			return
 		}
 		const otherTotal = Object.values(state.unsupported).reduce((sum, n) => sum + n, 0)
-		const details = [
-			state.files ? `Прочитано файлов: ${formatNumber(state.files)}` : null,
-			`ссылок: ${formatNumber(state.links.length)}`,
-			state.duplicates ? `повторов: ${formatNumber(state.duplicates)}` : null,
-		]
-			.filter(Boolean)
-			.join(" · ")
 		setStatus(archiveStatus, state.problems.length ? "warn" : "ok", [
 			el("p", {}, el("b", {text: `Найдено ${formatNumber(state.queue.length)} ${plural(state.queue.length, COMMENTS)} на стенах`})),
-			details,
+			state.files ? `Прочитано файлов: ${formatNumber(state.files)}` : null,
 			otherTotal
 				? `Ещё ${formatNumber(otherTotal)} ${plural(otherTotal, COMMENTS)} к фото, видео или товарам: их пока не удаляем.`
 				: null,
@@ -308,7 +302,7 @@
 
 	const clearArchive = () => {
 		if (state.running) return
-		Object.assign(state, {links: [], files: 0, problems: []})
+		Object.assign(state, {links: [], files: 0, problems: [], archiveOwners: new Set()})
 		rebuildQueue()
 	}
 
@@ -318,6 +312,12 @@
 		const links = []
 		const problems = []
 		let read = 0
+		const readPage = text => {
+			links.push(...extractCommentLinks(text))
+			const owner = extractArchiveOwner(text)
+			if (owner) state.archiveOwners.add(owner)
+			read++
+		}
 		for (const {file, path, fromFolder} of sources) {
 			const name = file.name.toLowerCase()
 			try {
@@ -329,14 +329,10 @@
 						)
 						continue
 					}
-					for (const entry of entries) {
-						links.push(...extractCommentLinks(decoder.decode(await readZipEntry(file, entry))))
-						read++
-					}
+					for (const entry of entries) readPage(decoder.decode(await readZipEntry(file, entry)))
 				} else if (/\.html?$/.test(name)) {
 					if (fromFolder && !isCommentsPath(path)) continue //likes and other sections link to other people's comments
-					links.push(...extractCommentLinks(await file.text()))
-					read++
+					readPage(await file.text())
 				}
 			} catch (error) {
 				problems.push(error instanceof ZipError ? `${file.name}: ${error.message}` : `Не удалось прочитать ${file.name}`)
@@ -567,6 +563,14 @@
 			hint.textContent = `К удалению: ${formatNumber(left)} ${plural(left, COMMENTS)}. Можно сначала проверить без удаления: страница посчитает, сколько из них ещё существуют и точно ваши.`
 		}
 
+		// the archive belongs to another account: its comments can't be deleted with this token
+		const strangers = state.user ? [...state.archiveOwners].filter(id => id !== state.user.id) : []
+		const ownerWarning = $("owner-warning")
+		ownerWarning.hidden = !strangers.length
+		ownerWarning.textContent = strangers.length
+			? `Архив, похоже, от другой страницы ВК (id ${strangers.join(", ")}), а доступ получен для ${state.user.first_name} ${state.user.last_name} (id ${state.user.id}). Удалить получится только свои комментарии, поэтому проверьте, что вы вошли в тот же аккаунт, с которого запрашивали архив.`
+			: ""
+
 		const resume = $("resume")
 		resume.hidden = state.running || !state.saved.size
 		$("resume-text").textContent = left
@@ -627,7 +631,10 @@
 		const url = commentUrl(comment)
 		if (outcome.matched === "thread") log(`Найден по thread, а не по reply: ${url}`, "warn")
 		if (outcome.status === "notMine") log(`Не ваш, пропущен: ${url}`, "warn")
-		if (outcome.status === "failed") log(`Не удалось удалить ${url}: ${errorText}`, "error")
+		if (outcome.status === "failed") {
+			//matched means the check passed and the delete itself failed
+			log(`${outcome.matched ? "Не удалось удалить" : "Не удалось проверить"} ${url}: ${errorText}`, "error")
+		}
 		if (outcome.status === "gone" && errorText) log(`Нет доступа к ${url}: ${errorText}`)
 	}
 
@@ -745,6 +752,7 @@
 		].filter(([, id]) => id)
 		let sawOtherAuthor = false
 		let lastError = null
+		let unexpectedError = null
 		for (const [name, id] of candidates) {
 			let item
 			try {
@@ -754,6 +762,7 @@
 				if (!(error instanceof ApiError)) throw error
 				const kind = classifyError(error.code)
 				if (isTransient(kind)) return {status: "retry", kind, error}
+				if (kind === "unknown" && !unexpectedError) unexpectedError = error
 				lastError = error
 				continue
 			}
@@ -772,6 +781,8 @@
 				return {status: isTransient(kind) ? "retry" : "failed", matched: name, kind, error}
 			}
 		}
+		//an unexpected error must stay visible instead of blending in with deleted comments
+		if (unexpectedError) return {status: "failed", error: unexpectedError}
 		if (sawOtherAuthor) return {status: "notMine"}
 		return {status: "gone", error: lastError}
 	}
@@ -934,9 +945,9 @@
 		const notDeleted = counts.gone + counts.notMine + counts.failed
 		$("done-title").textContent = dryRun ? "Проверка завершена" : "Готово"
 		$("done-summary").textContent = dryRun
-			? `Можно удалить ${formatNumber(counts.wouldDelete)} ${plural(counts.wouldDelete, COMMENTS)}. Ещё ${formatNumber(
-					notDeleted
-			  )} уже удалены, недоступны или принадлежат не вам. Чтобы удалить, нажмите «Удалить комментарии».`
+			? `Можно удалить ${formatNumber(counts.wouldDelete)} ${plural(counts.wouldDelete, COMMENTS)}.${
+					notDeleted ? ` Ещё ${formatNumber(notDeleted)} удалить не получится: причины в счётчиках выше и в списке ниже.` : ""
+			  } Чтобы удалить, нажмите «Удалить комментарии».`
 			: `Удалено ${formatNumber(counts.deleted)} ${plural(counts.deleted, COMMENTS)}.${
 					notDeleted ? ` Не удалось удалить или пропущено: ${formatNumber(notDeleted)}. Подробности в журнале и в списке ниже.` : ""
 			  }`
